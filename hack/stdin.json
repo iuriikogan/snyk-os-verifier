@@ -1,0 +1,21 @@
+{
+  "config": {
+    "artifactTypes": "application/vnd.snyk.os.vulnerabilities.report+json",
+    "version": "1.0.0",
+    "name": "snyk-os-vulnerabilities-report",
+    "maxCvssScore": "6.0"
+  },
+  "storeConfig": {
+    "version": "1.0.0",
+    "pluginBinDirs": null,
+    "store": {
+      "name": "oras"
+    }
+  },
+  "referenceDesc": {
+    "mediaType": "application/vnd.oci.artifact.manifest.v1+json",
+    "digest": "sha256:f756478e1af0f45799260886e9fa3d6680eaff4a0632c3c29168676c9a971290",
+    "size": 12526,
+    "artifactType": "application/vnd.snyk.os.vulnerabilities.report+json"
+  }
+}

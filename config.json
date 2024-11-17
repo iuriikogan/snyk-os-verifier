@@ -1,0 +1,33 @@
+{
+    "executor": {},
+    "store": {
+        "version": "1.0.0",
+        "plugins": [
+            {
+                "name": "oras"
+            }
+        ]
+    },
+    "policy": {
+      "version": "1.0.0",
+      "plugin": {
+          "name": "regoPolicy",
+          "policyPath": "",
+          "policy": "package ratify.policy\ndefault valid := false\nvalid {\n not failed_verify(input)\n}\nfailed_verify(reports) {\n  [path, value] := walk(reports)\n  value == false\n  path[count(path) - 1] == \"isSuccess\"\n}"
+      }
+    },
+    "verifier": {
+        "version": "1.0.0",
+        "plugins": [
+          { 
+            "name": "snyk-os-verifier",
+            "artifactTypes": "application/vnd.snyk.os.vulnerabilities.report+json",
+            "path": "$HOME/.ratify/plugins/snyk-os-verifier",
+            "config": {
+              "name": "snyk-os-verifier",
+              "maxCvssScore": "6.0"
+            }
+          }
+        ]
+  }
+}
