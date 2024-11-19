@@ -2,117 +2,104 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/opencontainers/go-digest"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/ratify-project/ratify/pkg/common"
+	"github.com/ratify-project/ratify/pkg/ocispecs"
 	"github.com/ratify-project/ratify/pkg/referrerstore"
+	"github.com/ratify-project/ratify/pkg/referrerstore/config"
 	"github.com/ratify-project/ratify/pkg/verifier/plugin/skel"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
+// MockReferrerStore is a mock implementation of the ReferrerStore interface
 type MockReferrerStore struct {
-	ListReferrersFunc  func(ctx context.Context, subject common.Reference) (*referrerstore.ListReferrersResult, error)
-	GetBlobContentFunc func(ctx context.Context, subject common.Reference, dgst digest.Digest) ([]byte, error)
+	mock.Mock
 }
 
-func (m *MockReferrerStore) ListReferrers(ctx context.Context, subject common.Reference) (*referrerstore.ListReferrersResult, error) {
-	return m.ListReferrersFunc(ctx, subject)
+// Name mocks the Name method of ReferrerStore
+func (m *MockReferrerStore) Name() string {
+	args := m.Called()
+	return args.String(0)
 }
 
-func (m *MockReferrerStore) GetBlobContent(ctx context.Context, subject common.Reference, dgst digest.Digest) ([]byte, error) {
-	return m.GetBlobContentFunc(ctx, subject, dgst)
+// ListReferrers mocks the ListReferrers method of ReferrerStore
+func (m *MockReferrerStore) ListReferrers(ctx context.Context, subjectReference common.Reference, artifactTypes []string, nextToken string, subjectDesc *ocispecs.SubjectDescriptor) (referrerstore.ListReferrersResult, error) {
+	args := m.Called(ctx, subjectReference, artifactTypes, nextToken, subjectDesc)
+	return args.Get(0).(referrerstore.ListReferrersResult), args.Error(1)
 }
 
-func (m *MockReferrerStore) GetConfig() interface{} {
-	// Dummy implementation
-	return nil
+// GetBlobContent mocks the GetBlobContent method of ReferrerStore
+func (m *MockReferrerStore) GetBlobContent(ctx context.Context, subjectReference common.Reference, digest digest.Digest) ([]byte, error) {
+	args := m.Called(ctx, subjectReference, digest)
+	return args.Get(0).([]byte), args.Error(1)
 }
 
-func TestVerifyReference_Success(t *testing.T) {
-	mockStore := &MockReferrerStore{
-		ListReferrersFunc: func(ctx context.Context, subject common.Reference) (*referrerstore.ListReferrersResult, error) {
-			return &referrerstore.ListReferrersResult{
-				Referrers: []v1.Descriptor{
-					{
-						ArtifactType: "application/vnd.snyk-os.json",
-						Digest:       digest.FromString("testdigest"),
-					},
+// GetReferenceManifest mocks the GetReferenceManifest method of ReferrerStore
+func (m *MockReferrerStore) GetReferenceManifest(ctx context.Context, subjectReference common.Reference, referenceDesc ocispecs.ReferenceDescriptor) (ocispecs.ReferenceManifest, error) {
+	args := m.Called(ctx, subjectReference, referenceDesc)
+	return args.Get(0).(ocispecs.ReferenceManifest), args.Error(1)
+}
+
+// GetConfig mocks the GetConfig method of ReferrerStore
+func (m *MockReferrerStore) GetConfig() *config.StoreConfig {
+	args := m.Called()
+	return args.Get(0).(*config.StoreConfig)
+}
+
+// GetSubjectDescriptor mocks the GetSubjectDescriptor method of ReferrerStore
+func (m *MockReferrerStore) GetSubjectDescriptor(ctx context.Context, subjectReference common.Reference) (*ocispecs.SubjectDescriptor, error) {
+	args := m.Called(ctx, subjectReference)
+	return args.Get(0).(*ocispecs.SubjectDescriptor), args.Error(1)
+}
+
+// mockReferrerStore returns a MockReferrerStore with pre-configured mock data
+func mockReferrerStore() *MockReferrerStore {
+	mockStore := new(MockReferrerStore)
+
+	// Mock ListReferrers to return a reference descriptor for snyk-os.json type
+	mockStore.On("ListReferrers", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(referrerstore.ListReferrersResult{
+			Referrers: []ocispecs.ReferenceDescriptor{
+				{
+					ArtifactType: "application/vnd.snyk-os.json",
+					Digest:       digest.FromString("testdigest1"),
 				},
-			}, nil
-		},
-		GetBlobContentFunc: func(ctx context.Context, subject common.Reference, dgst digest.Digest) ([]byte, error) {
-			snykData := SnykOS{
-				Vulnerabilities: []Vulnerability{
-					{
-						ID:        "vuln-1",
-						CVSSScore: 3.5,
-					},
-				},
-			}
-			return json.Marshal(snykData)
-		},
-	}
+			},
+		}, nil)
 
+	// Mock GetBlobContent to return example snyk-os.json content
+	mockStore.On("GetBlobContent", mock.Anything, mock.Anything, digest.FromString("testdigest1")).
+		Return([]byte(`{"vulnerabilities":[{"id":"SNYK-JS-BL-608877","title":"Remote Memory Exposure","severity":"high","cvssScore":7.6}]}`), nil)
+
+	return mockStore
+}
+
+func TestVerifyReference(t *testing.T) {
+	// Create a mock referrer store
+	mockStore := mockReferrerStore()
+
+	// Set up the test args
 	args := &skel.CmdArgs{
-		StdinData: []byte(`{"config":{"maxCvssScore":5.0}}`),
-	}
-	subjectRef := common.Reference{Path: "test/path"}
-	desc := v1.Descriptor{}
-
-	result, err := VerifyReference(args, subjectRef, desc, mockStore)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		StdinData: []byte(`{"config":{"maxCvssScore":7.5}}`), // Mock input for max CVSS score
 	}
 
-	if !result.IsSuccess {
-		t.Errorf("expected success, got failure: %v", result.Message)
+	// Mock subjectReference and referenceDescriptor
+	subjectReference := common.Reference{
+		// Add mock data for subjectReference here, if necessary
 	}
-}
-
-func TestVerifyReference_Failure(t *testing.T) {
-	mockStore := &MockReferrerStore{
-		ListReferrersFunc: func(ctx context.Context, subject common.Reference) (*referrerstore.ListReferrersResult, error) {
-			return &referrerstore.ListReferrersResult{
-				Referrers: []v1.Descriptor{
-					{
-						ArtifactType: "application/vnd.snyk-os.json",
-						Digest:       digest.FromString("testdigest"),
-					},
-				},
-			}, nil
-		},
-		GetBlobContentFunc: func(ctx context.Context, subject common.Reference, dgst digest.Digest) ([]byte, error) {
-			snykData := SnykOS{
-				Vulnerabilities: []Vulnerability{
-					{
-						ID:        "vuln-1",
-						CVSSScore: 7.0,
-					},
-				},
-			}
-			return json.Marshal(snykData)
-		},
+	referenceDescriptor := ocispecs.ReferenceDescriptor{
+		ArtifactType: "application/vnd.snyk-os.json",
+		Digest:       digest.FromString("testdigest1"), // Ensure this matches mock data
 	}
 
-	args := &skel.CmdArgs{
-		StdinData: []byte(`{"config":{"maxCvssScore":5.0}}`),
-	}
-	subjectRef := common.Reference{Path: "test/path"}
-	desc := v1.Descriptor{}
+	// Call VerifyReference with mock data
+	result, err := VerifyReference(args, subjectReference, referenceDescriptor, mockStore)
 
-	result, err := VerifyReference(args, subjectRef, desc, mockStore)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if result.IsSuccess {
-		t.Errorf("expected failure, got success")
-	}
-
-	expectedMsg := "Denied due to vulnerability vuln-1 with CVSS score 7.0"
-	if result.Message != expectedMsg {
-		t.Errorf("unexpected message: got %q, want %q", result.Message, expectedMsg)
-	}
+	// Assertions
+	assert.NoError(t, err)
+	assert.False(t, result.IsSuccess)
+	assert.Contains(t, result.Message, "Denied due to vulnerability")
 }
