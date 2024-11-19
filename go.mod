@@ -1,11 +1,11 @@
-module github.com/iuriikogan-snyk/ratify-snyk-verifier
+module github.com/iuriikogan/ratify-snyk-verifier
 
 go 1.23.2
 
 require (
+	github.com/opencontainers/go-digest v1.1.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/ratify-project/ratify v1.3.0
-	github.com/stretchr/testify v1.9.0
 )
 
 require (
@@ -37,10 +37,8 @@ require (
 	github.com/notaryproject/tspclient-go v0.2.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/stretchr/objx v0.5.2 // indirect
 	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/oauth2 v0.22.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
