@@ -8,6 +8,12 @@ function print_usage {
     exit 1
 }
 
+source ./setenv.sh
+
+## Deploy kind cluster
+echo "*---- deploying kind cluster ----*"
+kind create cluster --name="$CLUSTER_NAME" --image="kindest/node:v1.31.0"
+
 ## Deploy gatekeeper
 echo "*---- deploying gatekeeper ----*"
 helm repo add gatekeeper https://open-policy-agent.github.io/gatekeeper/charts
@@ -32,15 +38,15 @@ helm repo add ratify https://ratify-project.github.io/ratify
 
 # download the notary CaA certificate
 curl -sSLO https://raw.githubusercontent.com/deislabs/ratify/main/test/testdata/notation.crt
+
 # install ratify
-helm install ratify  \
+helm install ratify ./charts/ratify \
   ratify/ratify --atomic \
   --namespace gatekeeper-system \
   --set-file notationCerts={./notation.crt} \
   --set featureFlags.RATIFY_CERT_ROTATION=true \
   --set policy.useRego=true \
-  --set oras.authProviders.k8secretsEnabled=true \
-  --set plugins.
+  --set oras.authProviders.k8secretsEnabled=true
 
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=ratify -n gatekeeper-system --timeout=90s
 
@@ -50,8 +56,14 @@ echo "*---- created demo namespace ----*"
 
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=gatekeeper -n gatekeeper-system --timeout=90s
 
-echo "*---- Deploying Verifier Resouce to register the Plugin ----*"
-kubectl create -f 
-# kubectl create -f manifests/resources/gatekeeper/gatekeeper-vulns-constraint-template.yaml
-# kubectl create -f manifests/resources/gatekeeper/gatekeeper-sbom-constraint.yaml
-# kubectl create -f ./manifests/resources/ratify/
+echo "*---- Deploying Verifier Resource to register the Plugin ----*"
+cat <<EOF | kubectl apply -f-
+apiVersion: config.ratify.deislabs.io/v1alpha1
+kind: Verifier
+metadata:
+  name: snyk-os-verifier
+spec:
+  artifactTypes: application/vnd.snyk-os+json
+  name: snyk-os
+  mavCVSSScore: ${MAX_CVSS_SCORE}
+EOF

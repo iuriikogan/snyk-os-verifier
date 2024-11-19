@@ -3,11 +3,11 @@ GOLANG_VERSION := 1.23.2
 .PHONY: build
 build:
 	go mod download
-	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o bin/snyk-os .
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/snyk-os .
 
 .PHONY: test
 test:
-	go test ./... -v --count=0
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go test ./... -v --count=0
 
 .PHONY: vet
 vet:

@@ -1,9 +1,8 @@
-module github.com/iuriikogan/ratify-snyk-verifier
+module github.com/iuriikogan/snyk-os-verifier
 
 go 1.23.2
 
 require (
-	github.com/opencontainers/go-digest v1.1.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/ratify-project/ratify v1.3.0
 )

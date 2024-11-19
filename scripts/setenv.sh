@@ -9,7 +9,7 @@ export REGISTRY_URL="${REGISTRY_URL:="https://index.docker.io/v1/"}"  # Default 
 export REGISTRY_USERNAME="${REGISTRY_USERNAME:=}" # Default empty if not set
 export REGISTRY_PASSWORD=${REGISTRY_PASSWORD:=} # Default empty if not set
 export REGISTRY_EMAIL="${REGISTRY_EMAIL:=}"      # Default empty if not set
-export SBOM_FORMAT="${SBOM_FORMAT:="spdx2.3+json"}" # currently only spdx is supported by the ratify plugin
+export MAX_CVSS_SCORE="${MAX_CVSS_SCORE:="7"}" # Default 7 if not set
  
 # Notify user of any defaults applied (except password)
 echo "CLUSTER_NAME is set to '${CLUSTER_NAME}'"

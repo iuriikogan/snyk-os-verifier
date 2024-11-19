@@ -1,44 +1,48 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"testing"
 
+	"github.com/opencontainers/go-digest"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/ratify-project/ratify/pkg/common"
-	"github.com/ratify-project/ratify/pkg/ocispecs"
 	"github.com/ratify-project/ratify/pkg/referrerstore"
 	"github.com/ratify-project/ratify/pkg/verifier/plugin/skel"
 )
 
 type MockReferrerStore struct {
-	ListReferrersFunc  func(ctx context.Context, subject common.Reference, opts *referrerstore.ListReferrersOptions) (*referrerstore.ListReferrersResult, error)
-	GetBlobContentFunc func(ctx context.Context, subject common.Reference, digest string) ([]byte, error)
+	ListReferrersFunc  func(ctx context.Context, subject common.Reference) (*referrerstore.ListReferrersResult, error)
+	GetBlobContentFunc func(ctx context.Context, subject common.Reference, dgst digest.Digest) ([]byte, error)
 }
 
-func (m *MockReferrerStore) ListReferrers(ctx context.Context, subject common.Reference, opts *referrerstore.ListReferrersOptions) (*referrerstore.ListReferrersResult, error) {
-	return m.ListReferrersFunc(ctx, subject, opts)
+func (m *MockReferrerStore) ListReferrers(ctx context.Context, subject common.Reference) (*referrerstore.ListReferrersResult, error) {
+	return m.ListReferrersFunc(ctx, subject)
 }
 
-func (m *MockReferrerStore) GetBlobContent(ctx context.Context, subject common.Reference, digest string) ([]byte, error) {
-	return m.GetBlobContentFunc(ctx, subject, digest)
+func (m *MockReferrerStore) GetBlobContent(ctx context.Context, subject common.Reference, dgst digest.Digest) ([]byte, error) {
+	return m.GetBlobContentFunc(ctx, subject, dgst)
+}
+
+func (m *MockReferrerStore) GetConfig() interface{} {
+	// Dummy implementation
+	return nil
 }
 
 func TestVerifyReference_Success(t *testing.T) {
 	mockStore := &MockReferrerStore{
-		ListReferrersFunc: func(ctx context.Context, subject common.Reference, opts *referrerstore.ListReferrersOptions) (*referrerstore.ListReferrersResult, error) {
+		ListReferrersFunc: func(ctx context.Context, subject common.Reference) (*referrerstore.ListReferrersResult, error) {
 			return &referrerstore.ListReferrersResult{
-				Referrers: []ocispecs.ReferenceDescriptor{
+				Referrers: []v1.Descriptor{
 					{
 						ArtifactType: "application/vnd.snyk-os.json",
-						Digest:       "testdigest",
+						Digest:       digest.FromString("testdigest"),
 					},
 				},
 			}, nil
 		},
-		GetBlobContentFunc: func(ctx context.Context, subject common.Reference, digest string) ([]byte, error) {
+		GetBlobContentFunc: func(ctx context.Context, subject common.Reference, dgst digest.Digest) ([]byte, error) {
 			snykData := SnykOS{
 				Vulnerabilities: []Vulnerability{
 					{
@@ -55,7 +59,7 @@ func TestVerifyReference_Success(t *testing.T) {
 		StdinData: []byte(`{"config":{"maxCvssScore":5.0}}`),
 	}
 	subjectRef := common.Reference{Path: "test/path"}
-	desc := ocispecs.ReferenceDescriptor{}
+	desc := v1.Descriptor{}
 
 	result, err := VerifyReference(args, subjectRef, desc, mockStore)
 	if err != nil {
@@ -69,17 +73,17 @@ func TestVerifyReference_Success(t *testing.T) {
 
 func TestVerifyReference_Failure(t *testing.T) {
 	mockStore := &MockReferrerStore{
-		ListReferrersFunc: func(ctx context.Context, subject common.Reference, opts *referrerstore.ListReferrersOptions) (*referrerstore.ListReferrersResult, error) {
+		ListReferrersFunc: func(ctx context.Context, subject common.Reference) (*referrerstore.ListReferrersResult, error) {
 			return &referrerstore.ListReferrersResult{
-				Referrers: []ocispecs.ReferenceDescriptor{
+				Referrers: []v1.Descriptor{
 					{
 						ArtifactType: "application/vnd.snyk-os.json",
-						Digest:       "testdigest",
+						Digest:       digest.FromString("testdigest"),
 					},
 				},
 			}, nil
 		},
-		GetBlobContentFunc: func(ctx context.Context, subject common.Reference, digest string) ([]byte, error) {
+		GetBlobContentFunc: func(ctx context.Context, subject common.Reference, dgst digest.Digest) ([]byte, error) {
 			snykData := SnykOS{
 				Vulnerabilities: []Vulnerability{
 					{
@@ -96,7 +100,7 @@ func TestVerifyReference_Failure(t *testing.T) {
 		StdinData: []byte(`{"config":{"maxCvssScore":5.0}}`),
 	}
 	subjectRef := common.Reference{Path: "test/path"}
-	desc := ocispecs.ReferenceDescriptor{}
+	desc := v1.Descriptor{}
 
 	result, err := VerifyReference(args, subjectRef, desc, mockStore)
 	if err != nil {
@@ -109,4 +113,6 @@ func TestVerifyReference_Failure(t *testing.T) {
 
 	expectedMsg := "Denied due to vulnerability vuln-1 with CVSS score 7.0"
 	if result.Message != expectedMsg {
-		t.Errorf("unexpected message: got %q, want
+		t.Errorf("unexpected message: got %q, want %q", result.Message, expectedMsg)
+	}
+}
