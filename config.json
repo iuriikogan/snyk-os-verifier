@@ -20,11 +20,11 @@
         "version": "1.0.0",
         "plugins": [
           { 
-            "name": "snyk-os-verifier",
-            "artifactTypes": "application/vnd.snyk.os.vulnerabilities.report+json",
-            "path": "$HOME/.ratify/plugins/snyk-os-verifier",
+            "name": "snyk-os",
+            "artifactTypes": "application/vnd.snyk-os+json",
+            "path": "$HOME/.ratify/plugins/snyk-os",
             "config": {
-              "name": "snyk-os-verifier",
+              "name": "snyk-os",
               "maxCvssScore": "6.0"
             }
           }

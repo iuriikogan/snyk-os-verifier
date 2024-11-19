@@ -3,7 +3,7 @@ GOLANG_VERSION := 1.23.2
 .PHONY: build
 build:
 	go mod download
-	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o bin/snyk-os-verifier .
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o bin/snyk-os .
 
 .PHONY: test
 test:
@@ -19,5 +19,5 @@ lint:
 
 .PHONY: clean
 clean:
-	rm -f bin/ratify-snyk-verifier
+	rm -f bin/snyk-os
 	rm -f coverage.out
