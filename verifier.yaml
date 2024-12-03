@@ -1,0 +1,8 @@
+apiVersion: config.ratify.deislabs.io/v1beta1
+kind: Verifier
+metadata:
+  name: verifier-snyk-os
+spec:
+  artifactTypes: application/vnd.snyk-os+json
+  name: snyk-os
+  maxCVSSSCore: 5

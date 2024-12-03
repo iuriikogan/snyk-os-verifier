@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/opencontainers/go-digest"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1" // Import for OCI Descriptor
 	"github.com/ratify-project/ratify/pkg/common"
 	"github.com/ratify-project/ratify/pkg/ocispecs"
 	"github.com/ratify-project/ratify/pkg/referrerstore"
@@ -64,8 +65,10 @@ func mockReferrerStore() *MockReferrerStore {
 		Return(referrerstore.ListReferrersResult{
 			Referrers: []ocispecs.ReferenceDescriptor{
 				{
+					Descriptor: v1.Descriptor{
+						Digest: digest.FromString("testdigest1"),
+					},
 					ArtifactType: "application/vnd.snyk-os.json",
-					Digest:       digest.FromString("testdigest1"),
 				},
 			},
 		}, nil)
@@ -81,25 +84,76 @@ func TestVerifyReference(t *testing.T) {
 	// Create a mock referrer store
 	mockStore := mockReferrerStore()
 
-	// Set up the test args
+	// Set up the test args for the plugin
 	args := &skel.CmdArgs{
 		StdinData: []byte(`{"config":{"maxCvssScore":7.5}}`), // Mock input for max CVSS score
+		Version:   pluginVersion,                             // Version must match plugin version
 	}
 
-	// Mock subjectReference and referenceDescriptor
+	// Mock subjectReference
 	subjectReference := common.Reference{
-		// Add mock data for subjectReference here, if necessary
+		Path: "test-reference", // Assuming Path is a valid field in common.Reference
 	}
+
 	referenceDescriptor := ocispecs.ReferenceDescriptor{
+		Descriptor: v1.Descriptor{
+			Digest: digest.FromString("testdigest1"), // Ensure this matches mock data
+		},
 		ArtifactType: "application/vnd.snyk-os.json",
-		Digest:       digest.FromString("testdigest1"), // Ensure this matches mock data
 	}
 
 	// Call VerifyReference with mock data
 	result, err := VerifyReference(args, subjectReference, referenceDescriptor, mockStore)
 
-	// Assertions
+	// Assertions to validate test outcomes
 	assert.NoError(t, err)
 	assert.False(t, result.IsSuccess)
 	assert.Contains(t, result.Message, "Denied due to vulnerability")
+}
+
+func TestVerifyReferenceSuccess(t *testing.T) {
+	// Create a mock referrer store with a benign snyk-os.json content
+	mockStore := new(MockReferrerStore)
+
+	// Mock ListReferrers to return a reference descriptor for snyk-os.json type
+	mockStore.On("ListReferrers", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(referrerstore.ListReferrersResult{
+			Referrers: []ocispecs.ReferenceDescriptor{
+				{
+					Descriptor: v1.Descriptor{
+						Digest: digest.FromString("testdigest2"),
+					},
+					ArtifactType: "application/vnd.snyk-os.json",
+				},
+			},
+		}, nil)
+
+	// Mock GetBlobContent to return benign snyk-os.json content (all CVSS scores below the threshold)
+	mockStore.On("GetBlobContent", mock.Anything, mock.Anything, digest.FromString("testdigest2")).
+		Return([]byte(`{"vulnerabilities":[{"id":"SNYK-JS-BL-608877","title":"Remote Memory Exposure","severity":"low","cvssScore":5.0}]}`), nil)
+
+	// Set up the test args for the plugin
+	args := &skel.CmdArgs{
+		StdinData: []byte(`{"config":{"maxCvssScore":7.5}}`), // Mock input for max CVSS score
+		Version:   pluginVersion,                             // Version must match plugin version
+	}
+
+	subjectReference := common.Reference{
+		Path: "test-reference", // Assuming Path is a valid field in common.Reference
+	}
+
+	referenceDescriptor := ocispecs.ReferenceDescriptor{
+		Descriptor: v1.Descriptor{
+			Digest: digest.FromString("testdigest2"), // Ensure this matches mock data
+		},
+		ArtifactType: "application/vnd.snyk-os.json",
+	}
+
+	// Call VerifyReference with mock data
+	result, err := VerifyReference(args, subjectReference, referenceDescriptor, mockStore)
+
+	// Assertions to validate test outcomes
+	assert.NoError(t, err)
+	assert.True(t, result.IsSuccess)
+	assert.Equal(t, "Verification successful: no vulnerabilities exceed the configured CVSS threshold", result.Message)
 }

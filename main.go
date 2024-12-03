@@ -15,6 +15,11 @@ import (
 	"github.com/ratify-project/ratify/pkg/verifier/plugin/skel"
 )
 
+//
+// Snyk OS Verifier is a plugin for Ratify which will execute plugins as child processes
+// passing environment variables and JSON over STDIN. A plugin will perform its work and return JSON over STDOUT.
+//
+
 // Plugin identification constants
 const (
 	pluginName    = "snyk-os"
